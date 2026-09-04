@@ -1,0 +1,47 @@
+# Dependencies
+node_modules
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Next.js
+/.next/
+/out/
+
+# Production
+/build
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.env.venv
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment variables & secrets (CRITICAL SECURITY RULE)
+.env
+.env.*
+!.env.example
+
+# IDE & OS
+.DS_Store
+*.pem
+Thumbs.db
+.idea/
+.vscode/
+
+# Logs & Database files
+*.log
+*.sqlite
+*.sqlite3
+*.db
+

@@ -1,0 +1,62 @@
+{
+  "DEL-BOM": {
+    "route": "DEL-BOM",
+    "forecast": [
+      { "date": "2026-09-03", "predicted_fare": 8550 },
+      { "date": "2026-09-04", "predicted_fare": 8680 },
+      { "date": "2026-09-05", "predicted_fare": 8820 },
+      { "date": "2026-09-06", "predicted_fare": 8950 },
+      { "date": "2026-09-07", "predicted_fare": 9020 },
+      { "date": "2026-09-08", "predicted_fare": 9100 },
+      { "date": "2026-09-09", "predicted_fare": 9180 }
+    ]
+  },
+  "BOM-BLR": {
+    "route": "BOM-BLR",
+    "forecast": [
+      { "date": "2026-09-03", "predicted_fare": 7920 },
+      { "date": "2026-09-04", "predicted_fare": 8050 },
+      { "date": "2026-09-05", "predicted_fare": 8140 },
+      { "date": "2026-09-06", "predicted_fare": 8210 },
+      { "date": "2026-09-07", "predicted_fare": 8290 },
+      { "date": "2026-09-08", "predicted_fare": 8330 },
+      { "date": "2026-09-09", "predicted_fare": 8350 }
+    ]
+  },
+  "MAA-DEL": {
+    "route": "MAA-DEL",
+    "forecast": [
+      { "date": "2026-09-03", "predicted_fare": 9240 },
+      { "date": "2026-09-04", "predicted_fare": 9380 },
+      { "date": "2026-09-05", "predicted_fare": 9510 },
+      { "date": "2026-09-06", "predicted_fare": 9650 },
+      { "date": "2026-09-07", "predicted_fare": 9740 },
+      { "date": "2026-09-08", "predicted_fare": 9830 },
+      { "date": "2026-09-09", "predicted_fare": 9920 }
+    ]
+  },
+  "BLR-HYD": {
+    "route": "BLR-HYD",
+    "forecast": [
+      { "date": "2026-09-03", "predicted_fare": 5210 },
+      { "date": "2026-09-04", "predicted_fare": 5190 },
+      { "date": "2026-09-05", "predicted_fare": 5180 },
+      { "date": "2026-09-06", "predicted_fare": 5170 },
+      { "date": "2026-09-07", "predicted_fare": 5175 },
+      { "date": "2026-09-08", "predicted_fare": 5180 },
+      { "date": "2026-09-09", "predicted_fare": 5180 }
+    ]
+  },
+  "DEL-BLR": {
+    "route": "DEL-BLR",
+    "forecast": [
+      { "date": "2026-09-03", "predicted_fare": 8840 },
+      { "date": "2026-09-04", "predicted_fare": 8920 },
+      { "date": "2026-09-05", "predicted_fare": 9010 },
+      { "date": "2026-09-06", "predicted_fare": 9090 },
+      { "date": "2026-09-07", "predicted_fare": 9150 },
+      { "date": "2026-09-08", "predicted_fare": 9210 },
+      { "date": "2026-09-09", "predicted_fare": 9260 }
+    ]
+  }
+}

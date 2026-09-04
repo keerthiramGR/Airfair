@@ -1,0 +1,30 @@
+[
+  {
+    "route": "DEL-BOM",
+    "severity": "HIGH",
+    "message": "Fare increased by 23%",
+    "percentage_change": 23.0,
+    "timestamp": "2 hours ago"
+  },
+  {
+    "route": "MAA-DEL",
+    "severity": "MEDIUM",
+    "message": "Unusual price movement detected",
+    "percentage_change": 8.4,
+    "timestamp": "5 hours ago"
+  },
+  {
+    "route": "BLR-HYD",
+    "severity": "LOW",
+    "message": "Prices returned to normal range",
+    "percentage_change": -3.2,
+    "timestamp": "1 day ago"
+  },
+  {
+    "route": "BOM-CCU",
+    "severity": "HIGH",
+    "message": "Surge threshold exceeded (+19.4%)",
+    "percentage_change": 19.4,
+    "timestamp": "1 day ago"
+  }
+]

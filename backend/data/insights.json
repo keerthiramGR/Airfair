@@ -1,0 +1,30 @@
+[
+  {
+    "type": "PRICE_SURGE",
+    "title": "Price Surge Detected",
+    "route": "DEL-BOM",
+    "description": "Fare increased by 15.2% in the last 24 hours.",
+    "severity": "HIGH"
+  },
+  {
+    "type": "FORECAST",
+    "title": "Upcoming Increase",
+    "route": "MAA-DEL",
+    "description": "Prices may increase over the next 7 days.",
+    "severity": "MEDIUM"
+  },
+  {
+    "type": "STABLE",
+    "title": "Stable Route",
+    "route": "BLR-HYD",
+    "description": "Prices have remained relatively stable over the past 14 days.",
+    "severity": "LOW"
+  },
+  {
+    "type": "VOLATILITY",
+    "title": "Advance Purchase Volatility",
+    "route": "BOM-BLR",
+    "description": "Rapid compression of fare discounts observed within 5-day booking window.",
+    "severity": "MEDIUM"
+  }
+]

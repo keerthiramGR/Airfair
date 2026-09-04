@@ -1,0 +1,37 @@
+{
+  "default": [
+    { "window": "T+1", "average_fare": 11200 },
+    { "window": "T+7", "average_fare": 9400 },
+    { "window": "T+15", "average_fare": 8100 },
+    { "window": "T+30", "average_fare": 7200 },
+    { "window": "T+45", "average_fare": 6800 }
+  ],
+  "DEL-BOM": [
+    { "window": "T+1", "average_fare": 11200 },
+    { "window": "T+7", "average_fare": 9400 },
+    { "window": "T+15", "average_fare": 8100 },
+    { "window": "T+30", "average_fare": 7200 },
+    { "window": "T+45", "average_fare": 6800 }
+  ],
+  "BOM-BLR": [
+    { "window": "T+1", "average_fare": 10500 },
+    { "window": "T+7", "average_fare": 8800 },
+    { "window": "T+15", "average_fare": 7600 },
+    { "window": "T+30", "average_fare": 6900 },
+    { "window": "T+45", "average_fare": 6400 }
+  ],
+  "MAA-DEL": [
+    { "window": "T+1", "average_fare": 12800 },
+    { "window": "T+7", "average_fare": 10600 },
+    { "window": "T+15", "average_fare": 9200 },
+    { "window": "T+30", "average_fare": 8300 },
+    { "window": "T+45", "average_fare": 7800 }
+  ],
+  "BLR-HYD": [
+    { "window": "T+1", "average_fare": 7400 },
+    { "window": "T+7", "average_fare": 6100 },
+    { "window": "T+15", "average_fare": 5300 },
+    { "window": "T+30", "average_fare": 4800 },
+    { "window": "T+45", "average_fare": 4400 }
+  ]
+}
