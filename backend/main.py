@@ -1,6 +1,17 @@
+import os
+import sys
+from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+# Ensure repository root and backend directory are in Python path
+BASE_DIR = Path(__file__).resolve().parent
+if str(BASE_DIR.parent) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR.parent))
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
 from backend.schemas.schemas import HealthResponse
 from backend.database.connection import check_db_health
 from backend.routers import (
@@ -40,19 +51,36 @@ and normalized fare quotes powered by **Supabase PostgreSQL**.
     redoc_url="/redoc"
 )
 
-# CORS Middleware configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS Middleware configuration (Supports local dev, Vercel frontend, Railway frontend, and custom domains)
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+custom_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+
+default_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+]
+
+allowed_origins = list(set(default_origins + custom_origins))
+
+if allowed_origins_env.strip() == "*":
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_origin_regex=os.getenv("CORS_ORIGIN_REGEX", r"https://.*\.vercel\.app|https://.*\.railway\.app|https://.*\.up\.railway\.app"),
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Mount modular routers
 app.include_router(dashboard_router)
@@ -69,6 +97,24 @@ app.include_router(data_quality_router)
 app.include_router(booking_router)
 app.include_router(admin_booking_router)
 
+
+
+@app.get(
+    "/",
+    tags=["System"],
+    summary="AIRFAIR API root status",
+    description="Welcome endpoint providing API status and links to interactive OpenAPI docs and health endpoints."
+)
+def api_root():
+    return {
+        "name": "AIRFAIR API",
+        "version": "3.0.0",
+        "status": "online",
+        "description": "Real-Time Airfare Price Index & Forecasting API for India (SIH 2026 PS 26056)",
+        "docs": "/docs",
+        "redoc": "/redoc",
+        "health": "/health"
+    }
 
 
 @app.get(
@@ -98,3 +144,12 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "An internal server error occurred. Please verify backend service logs."}
     )
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    host = os.getenv("HOST", "0.0.0.0")
+    print(f"Starting AIRFAIR API on {host}:{port}")
+    uvicorn.run("backend.main:app", host=host, port=port, reload=False)
+
