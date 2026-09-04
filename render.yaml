@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: airfair-backend
+    runtime: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: "http://localhost:3000,http://127.0.0.1:3000"
+      - key: AIRFARE_API_PROVIDER
+        value: SERPAPI
+      - key: AIRFARE_API_ENABLED
+        value: "true"
+      - key: DATA_SOURCE_MODE
+        value: REAL
+      - key: TEST_MODE
+        value: "false"
