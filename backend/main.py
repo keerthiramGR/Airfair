@@ -12,8 +12,12 @@ if str(BASE_DIR.parent) not in sys.path:
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
+from contextlib import asynccontextmanager
+from apscheduler.schedulers.background import BackgroundScheduler
+
 from backend.schemas.schemas import HealthResponse
 from backend.database.connection import check_db_health
+from backend.jobs.auto_booking_scheduler import run_auto_booking_job
 from backend.routers import (
     dashboard_router,
     routes_router,
@@ -27,11 +31,36 @@ from backend.routers import (
     historical_router,
     data_quality_router,
     booking_router,
-    admin_booking_router
+    admin_booking_router,
+    scheduler_router
 )
+
+# Background Scheduler for Auto-Booking
+scheduler = BackgroundScheduler(timezone="Asia/Kolkata")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Schedule daily auto-booking job at 06:00 AM IST
+    scheduler.add_job(
+        run_auto_booking_job,
+        "cron",
+        hour=6,
+        minute=0,
+        id="airfair_daily_auto_booking",
+        replace_existing=True
+    )
+    scheduler.start()
+    print("[AIRFAIR SCHEDULER] Daily auto-booking scheduler initialized (06:00 IST / Asia/Kolkata).")
+    yield
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
+        print("[AIRFAIR SCHEDULER] Auto-booking scheduler shut down cleanly.")
+
 
 app = FastAPI(
     title="AIRFAIR — Real-Time Airfare Price Index for India",
+    lifespan=lifespan,
     description="""
 ### Smart India Hackathon 2026 — Problem Statement 26056
 **Backend REST API Layer (Phase 3: Supabase PostgreSQL Integration)**
@@ -96,6 +125,7 @@ app.include_router(historical_router)
 app.include_router(data_quality_router)
 app.include_router(booking_router)
 app.include_router(admin_booking_router)
+app.include_router(scheduler_router)
 
 
 

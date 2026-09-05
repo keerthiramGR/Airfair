@@ -35,10 +35,18 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   RefreshCw,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Smartphone,
+  Building2,
+  Lock,
+  Eye,
+  EyeOff,
+  Wifi,
+  BadgeCheck
 } from "lucide-react";
 
 import AppShell from "@/components/layout/AppShell";
+import { API_BASE_URL } from "@/lib/api";
 
 const ALL_AIRPORTS = [
   { code: "DEL", city: "Delhi", name: "Indira Gandhi International" },
@@ -57,29 +65,46 @@ const ALL_AIRPORTS = [
 const SEAT_ROWS = [1, 2, 3, 4, 5, 6];
 const SEAT_COLS = ["A", "B", "C", "D", "E", "F"];
 
-// Generate 30-day forward price trend data with realistic variation
-function generate30DayPriceTrends(basePrice = 5500, airlineCode = "6E") {
+// Generate flexible price trend data from today up to travel date
+function generateFlexiblePriceTrends(basePrice = 5500, airlineCode = "6E", travelDateStr = null) {
   const trends = [];
-  const today = new Date(2026, 8, 4); // 2026-09-04
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  let numDays = 14;
+  if (travelDateStr) {
+    const travelD = new Date(travelDateStr + "T00:00:00");
+    const diffTime = travelD.getTime() - today.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    numDays = Math.max(1, Math.min(diffDays + 1, 45));
+  }
 
   let lowestPrice = Infinity;
   let lowestIndex = -1;
 
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < numDays; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
 
     const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-    const isMidweek = d.getDay() === 2 || d.getDay() === 3; // Tue/Wed usually cheapest
+    const isMidweek = d.getDay() === 2 || d.getDay() === 3;
+    const isToday = i === 0;
 
-    // Price variation logic: T+1 to T+3 are higher, mid-range lower, weekends higher
     let factor = 1.0;
-    if (i < 3) factor = 1.28 + (3 - i) * 0.08; // close-in departure surge
-    else if (i >= 12 && i <= 21 && isMidweek) factor = 0.82; // sweet spot
-    else if (isWeekend) factor = 1.15;
-    else factor = 0.95 + ((i * 7) % 15) / 100;
+    if (isToday) {
+      factor = 1.0; // standard immediate purchase fare
+    } else if (i < 3) {
+      factor = 1.12 + (3 - i) * 0.05;
+    } else if (i >= 6 && i <= 18 && isMidweek) {
+      factor = 0.84; // lowest sweet spot
+    } else if (isWeekend) {
+      factor = 1.10;
+    } else {
+      factor = 0.94 + ((i * 7) % 15) / 100;
+    }
 
     const estimatedFare = Math.round((basePrice * factor) / 50) * 50;
     if (estimatedFare < lowestPrice) {
@@ -87,8 +112,8 @@ function generate30DayPriceTrends(basePrice = 5500, airlineCode = "6E") {
       lowestIndex = i;
     }
 
-    const prevEst = i > 0 ? trends[i - 1].fare : estimatedFare * 1.05;
-    const diffPct = Math.round(((estimatedFare - prevEst) / prevEst) * 100);
+    const prevEst = i > 0 ? trends[i - 1].fare : estimatedFare;
+    const diffPct = prevEst > 0 ? Math.round(((estimatedFare - prevEst) / prevEst) * 100) : 0;
 
     trends.push({
       index: i,
@@ -101,6 +126,7 @@ function generate30DayPriceTrends(basePrice = 5500, airlineCode = "6E") {
       diffPct: diffPct,
       trend: diffPct > 2 ? "INCREASING" : diffPct < -2 ? "DECREASING" : "STABLE",
       isWeekend,
+      isToday,
       isLowest: false
     });
   }
@@ -112,8 +138,10 @@ function generate30DayPriceTrends(basePrice = 5500, airlineCode = "6E") {
   return trends;
 }
 
+const generate30DayPriceTrends = generateFlexiblePriceTrends;
+
 export default function BookFlightPage() {
-  // Stepper: 1: Route & Flight, 2: Travel Date, 3: 30-Day Booking Calendar (auto-book date), 4: Passenger Info, 5: Seats & Addons, 6: Confirmed
+  // Stepper: 1: Route & Flight, 2: Travel Date, 3: Booking Calendar (auto-book date), 4: Passenger Info, 5: Seats & Addons, 6: Payment, 7: Confirmed
   const [step, setStep] = useState(1);
   const [quotes, setQuotes] = useState([]);
   const [selectedOrigin, setSelectedOrigin] = useState("DEL");
@@ -121,16 +149,21 @@ export default function BookFlightPage() {
   const [selectedFlight, setSelectedFlight] = useState(null);
   const [isLoadingQuotes, setIsLoadingQuotes] = useState(true);
 
-  // Travel Date State (actual departure date — must be ≥30 days from today)
-  const minTravelDate = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 30);
-    return d.toISOString().split("T")[0];
+  // Travel Date State (user can book for any upcoming date: today, tomorrow, or future)
+  const todayDateStr = useMemo(() => {
+    return new Date().toISOString().split("T")[0];
   }, []);
-  const [travelDate, setTravelDate] = useState("");
+
+  const minTravelDate = todayDateStr;
+
+  const [travelDate, setTravelDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split("T")[0];
+  });
   const [travelDateError, setTravelDateError] = useState("");
 
-  // 30-Day Booking Calendar State (when to purchase — auto-book date)
+  // Booking & Purchase Timing State
   const [priceTrends, setPriceTrends] = useState([]);
   const [selectedDateTrend, setSelectedDateTrend] = useState(null);
   const [isAutoBookMode, setIsAutoBookMode] = useState(true);
@@ -166,12 +199,93 @@ export default function BookFlightPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  // Payment state
+  const [paymentMethod, setPaymentMethod] = useState("upi"); // 'upi' | 'card'
+  const [upiId, setUpiId] = useState("");
+  const [upiError, setUpiError] = useState("");
+  const [selectedBank, setSelectedBank] = useState(null);
+  const [cardData, setCardData] = useState({
+    number: "",
+    name: "",
+    expiry: "",
+    cvv: ""
+  });
+  const [showCvv, setShowCvv] = useState(false);
+  const [cardFlipped, setCardFlipped] = useState(false);
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+
+  const BANKS = [
+    { id: "sbi", name: "State Bank of India", short: "SBI", gradient: "from-[#1a237e] to-[#283593]", accent: "#1565C0", logo: "🏦" },
+    { id: "hdfc", name: "HDFC Bank", short: "HDFC", gradient: "from-[#004C8C] to-[#0277BD]", accent: "#0288D1", logo: "🏛️" },
+    { id: "icici", name: "ICICI Bank", short: "ICICI", gradient: "from-[#b71c1c] to-[#c62828]", accent: "#D32F2F", logo: "💳" },
+    { id: "axis", name: "Axis Bank", short: "AXIS", gradient: "from-[#7B1FA2] to-[#6A1B9A]", accent: "#8E24AA", logo: "🏢" },
+    { id: "kotak", name: "Kotak Mahindra", short: "KOTAK", gradient: "from-[#E65100] to-[#BF360C]", accent: "#E64A19", logo: "🔴" },
+    { id: "pnb", name: "Punjab National", short: "PNB", gradient: "from-[#1B5E20] to-[#2E7D32]", accent: "#388E3C", logo: "🟢" }
+  ];
+
+  const formatCardNumber = (val) => {
+    const digits = val.replace(/\D/g, "").slice(0, 16);
+    return digits.replace(/(\d{4})/g, "$1 ").trim();
+  };
+
+  const formatExpiry = (val) => {
+    const digits = val.replace(/\D/g, "").slice(0, 4);
+    if (digits.length >= 3) return digits.slice(0, 2) + "/" + digits.slice(2);
+    return digits;
+  };
+
+  const handleCardNumberChange = (e) => {
+    setCardData({ ...cardData, number: formatCardNumber(e.target.value) });
+  };
+
+  const handleExpiryChange = (e) => {
+    setCardData({ ...cardData, expiry: formatExpiry(e.target.value) });
+  };
+
+  const maskCardNumber = (num) => {
+    const clean = num.replace(/\s/g, "");
+    if (clean.length === 0) return "•••• •••• •••• ••••";
+    const parts = [];
+    for (let i = 0; i < 16; i += 4) {
+      const chunk = clean.slice(i, i + 4);
+      if (i < 8 && chunk.length === 4) parts.push("••••");
+      else parts.push(chunk.padEnd(4, "•"));
+    }
+    return parts.join(" ");
+  };
+
+  const handlePayNow = async () => {
+    if (paymentMethod === "upi") {
+      if (!upiId.match(/^[\w.]+@[\w]+$/)) {
+        setUpiError("Please enter a valid UPI ID (e.g. name@upi)");
+        return;
+      }
+      setUpiError("");
+    } else {
+      const digits = cardData.number.replace(/\s/g, "");
+      if (digits.length < 16) { setErrorMessage("Please enter a valid 16-digit card number."); return; }
+      if (!cardData.name.trim()) { setErrorMessage("Please enter the cardholder name."); return; }
+      if (cardData.expiry.length < 5) { setErrorMessage("Please enter a valid expiry date."); return; }
+      if (cardData.cvv.length < 3) { setErrorMessage("Please enter a valid CVV."); return; }
+      if (!selectedBank) { setErrorMessage("Please select your bank."); return; }
+    }
+    setErrorMessage("");
+    setIsPaymentProcessing(true);
+    // Simulate payment gateway delay
+    await new Promise(r => setTimeout(r, 2200));
+    setIsPaymentProcessing(false);
+    setPaymentSuccess(true);
+    // Proceed to finalize booking in backend
+    await handleFinalizeBooking();
+  };
+
   // Load Quotes from Backend
   useEffect(() => {
     async function load() {
       setIsLoadingQuotes(true);
       try {
-        const res = await fetch("http://127.0.0.1:8000/api/fares?limit=100");
+        const res = await fetch(`${API_BASE_URL}/api/fares?limit=100`);
         if (res.ok) {
           const data = await res.json();
           const items = data.items || data.quotes || [];
@@ -242,7 +356,7 @@ export default function BookFlightPage() {
     if (shortlistedFlights.length > 0 && (!selectedFlight || selectedFlight.origin !== selectedOrigin || selectedFlight.destination !== selectedDestination)) {
       const flight = shortlistedFlights[0];
       setSelectedFlight(flight);
-      const trends = generate30DayPriceTrends(flight.total_fare, flight.airline_code);
+      const trends = generateFlexiblePriceTrends(flight.total_fare, flight.airline_code, travelDate);
       setPriceTrends(trends);
       // Select lowest fare day by default
       const lowestDay = trends.find(t => t.isLowest) || trends[0];
@@ -250,9 +364,22 @@ export default function BookFlightPage() {
     }
   }, [shortlistedFlights, selectedOrigin, selectedDestination]);
 
+  // Recalculate price trends dynamically whenever travelDate changes
+  useEffect(() => {
+    if (selectedFlight && travelDate) {
+      const trends = generateFlexiblePriceTrends(selectedFlight.total_fare, selectedFlight.airline_code, travelDate);
+      setPriceTrends(trends);
+      // If current selection is beyond new travel date, re-select
+      if (!selectedDateTrend || (selectedDateTrend.dateString > travelDate)) {
+        const lowestDay = trends.find(t => t.isLowest) || trends[0];
+        setSelectedDateTrend(lowestDay);
+      }
+    }
+  }, [travelDate, selectedFlight]);
+
   const handleSelectFlight = (flight) => {
     setSelectedFlight(flight);
-    const trends = generate30DayPriceTrends(flight.total_fare, flight.airline_code);
+    const trends = generateFlexiblePriceTrends(flight.total_fare, flight.airline_code, travelDate);
     setPriceTrends(trends);
     const lowestDay = trends.find(t => t.isLowest) || trends[0];
     setSelectedDateTrend(lowestDay);
@@ -329,10 +456,9 @@ export default function BookFlightPage() {
   // Final Auto-Booking Handler
   const handleFinalizeBooking = async () => {
     setIsProcessing(true);
-    setErrorMessage("");
     try {
       // 1. Initiate booking in FastAPI with full flight, corridor & date details
-      const initRes = await fetch("http://127.0.0.1:8000/api/bookings/initiate", {
+      const initRes = await fetch(`${API_BASE_URL}/api/bookings/initiate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -344,6 +470,8 @@ export default function BookFlightPage() {
           origin: selectedOrigin,
           destination: selectedDestination,
           flight_date: travelDate || "2026-10-04",
+          travel_date: travelDate || "2026-10-04",
+          auto_book_execution_date: selectedDateTrend?.dateString || new Date().toISOString().split("T")[0],
           scheduled_booking_date: selectedDateTrend?.dateString || new Date().toISOString().split("T")[0],
           airline_code: selectedFlight?.airline_code || "6E",
           airline_name: selectedFlight?.airline_name || "IndiGo",
@@ -361,7 +489,7 @@ export default function BookFlightPage() {
 
 
       // 2. Attach Passengers
-      await fetch(`http://127.0.0.1:8000/api/bookings/${bookingId}/passengers`, {
+      await fetch(`${API_BASE_URL}/api/bookings/${bookingId}/passengers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ passengers })
@@ -375,7 +503,7 @@ export default function BookFlightPage() {
         price: s.price
       }));
       if (seatsPayload.length > 0) {
-        await fetch(`http://127.0.0.1:8000/api/bookings/${bookingId}/seats`, {
+        await fetch(`${API_BASE_URL}/api/bookings/${bookingId}/seats`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ seats: seatsPayload })
@@ -390,7 +518,7 @@ export default function BookFlightPage() {
       if (selectedAddOns.priority_boarding) addonsPayload.push({ category: "PRIORITY_BOARDING", title: "Priority Baggage & Boarding", unit_price: 350.0, quantity: pCount });
 
       if (addonsPayload.length > 0) {
-        await fetch(`http://127.0.0.1:8000/api/bookings/${bookingId}/add-ons`, {
+        await fetch(`${API_BASE_URL}/api/bookings/${bookingId}/add-ons`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ add_ons: addonsPayload })
@@ -398,14 +526,14 @@ export default function BookFlightPage() {
       }
 
       // 5. Checkout / Prepare Payment Intent
-      const payRes = await fetch(`http://127.0.0.1:8000/api/bookings/${bookingId}/checkout`, {
+      const payRes = await fetch(`${API_BASE_URL}/api/bookings/${bookingId}/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" }
       });
       const payData = await payRes.json();
 
       // 6. Verify & Issue / Schedule
-      const verifyRes = await fetch(`http://127.0.0.1:8000/api/bookings/${bookingId}/verify-payment`, {
+      const verifyRes = await fetch(`${API_BASE_URL}/api/bookings/${bookingId}/verify-payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -418,7 +546,7 @@ export default function BookFlightPage() {
 
       setCreatedBooking(verifyData.booking);
       setCheckoutOrder(payData.order);
-      setStep(6);
+      setStep(7);
     } catch (err) {
       setErrorMessage(err.message || "An error occurred while booking.");
     } finally {
@@ -447,7 +575,7 @@ export default function BookFlightPage() {
 
           {/* Stepper Indicator */}
           <div className="flex items-center gap-2 text-xs font-bold">
-            {[1, 2, 3, 4, 5, 6].map((s) => (
+            {[1, 2, 3, 4, 5, 6, 7].map((s) => (
               <div key={s} className="flex items-center gap-1.5">
                 <div
                   className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all text-[10px] sm:text-xs ${
@@ -460,7 +588,7 @@ export default function BookFlightPage() {
                 >
                   {step > s ? <Check size={12} /> : s}
                 </div>
-                {s < 6 && <div className={`w-3 sm:w-4 h-0.5 ${step > s ? "bg-emerald-400" : "bg-[#E5E7EB]"}`} />}
+                {s < 7 && <div className={`w-2 sm:w-3 h-0.5 ${step > s ? "bg-emerald-400" : "bg-[#E5E7EB]"}`} />}
               </div>
             ))}
           </div>
@@ -648,21 +776,20 @@ export default function BookFlightPage() {
                 </p>
               </div>
 
-              {/* Why book early info card */}
-              <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 space-y-2">
-                <div className="flex items-center gap-2 text-sm font-bold text-blue-800">
-                  <Info size={16} />
-                  <span>Why book 1 month in advance?</span>
+              {/* Flexible Travel Info Card */}
+              <div className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-200 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-bold text-orange-900">
+                  <Plane size={16} className="text-airfair-orange" />
+                  <span>Book Whenever You Want — Flexible Departure Dates</span>
                 </div>
-                <p className="text-xs text-blue-700 leading-relaxed">
-                  Airlines typically offer the lowest fares when you book <strong>30+ days</strong> before departure. 
-                  Last-minute bookings often cost 25–50% more. By selecting your travel date first, 
-                  AIRFAIR can show you the <strong>cheapest day to purchase</strong> your ticket in the next 30 days, 
-                  and automatically book it for you on that day.
+                <p className="text-xs text-orange-800 leading-relaxed">
+                  Choose any departure date that suits your travel schedule — whether you're flying <strong>tomorrow</strong>, 
+                  next week, or months ahead. On the next step, you can choose to <strong>book immediately today</strong> or 
+                  let AIRFAIR's auto-scheduler buy on the <strong>cheapest predicted day</strong> before your flight!
                 </p>
-                <div className="flex items-center gap-4 pt-1 text-[11px] font-bold text-blue-600">
-                  <span className="flex items-center gap-1"><TrendingDown size={12} /> Early booking = Lower fares</span>
-                  <span className="flex items-center gap-1"><Zap size={12} /> Auto-book on the cheapest day</span>
+                <div className="flex items-center gap-4 pt-1 text-[11px] font-bold text-airfair-orange">
+                  <span className="flex items-center gap-1"><Zap size={12} /> Instant or Auto-Scheduled</span>
+                  <span className="flex items-center gap-1"><TrendingDown size={12} /> Optimal Fare Prediction</span>
                 </div>
               </div>
 
@@ -692,7 +819,7 @@ export default function BookFlightPage() {
                     const val = e.target.value;
                     setTravelDate(val);
                     if (val && val < minTravelDate) {
-                      setTravelDateError(`Travel date must be at least 30 days from today (${minTravelDate} or later).`);
+                      setTravelDateError("Travel date cannot be in the past.");
                     } else {
                       setTravelDateError("");
                     }
@@ -700,7 +827,7 @@ export default function BookFlightPage() {
                   className="w-full sm:w-80 px-4 py-3 rounded-xl border border-[#E5E7EB] text-sm font-bold bg-[#FFFCF9] text-[#171717] focus:ring-2 focus:ring-orange-200 outline-none"
                 />
                 <p className="text-[11px] text-[#9CA3AF]">
-                  Earliest available: <strong>{minTravelDate}</strong> (30 days from today)
+                  Select any date from today (<strong>{minTravelDate}</strong>) onwards.
                 </p>
                 {travelDateError && (
                   <div className="flex items-center gap-1.5 text-xs text-red-600 font-semibold">
@@ -722,7 +849,7 @@ export default function BookFlightPage() {
                       {new Date(travelDate + "T00:00:00").toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
                     </div>
                     <div className="text-[11px] text-[#6B7280]">
-                      Next step: pick the best day to <strong>purchase</strong> your ticket from the 30-day booking calendar.
+                      Next step: choose to <strong>book instantly today</strong> or schedule auto-booking on the lowest fare day.
                     </div>
                   </div>
                 </div>
@@ -749,14 +876,14 @@ export default function BookFlightPage() {
                 }}
                 className="px-6 py-2.5 rounded-xl bg-airfair-orange hover:bg-orange-600 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-warm-sm disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <span>Continue: View 30-Day Booking Calendar</span>
+                <span>Continue: Choose Booking & Purchase Timing</span>
                 <ChevronRight size={16} />
               </button>
             </div>
           </div>
         )}
 
-        {/* STEP 3: 30-DAY PREDICTIVE PRICE CALENDAR & DATE SELECTOR */}
+        {/* STEP 3: PREDICTIVE PRICE CALENDAR & TIMING SELECTOR */}
         {step === 3 && (
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-2xl border border-[#F1E5DB] shadow-warm-xs space-y-5">
@@ -766,11 +893,11 @@ export default function BookFlightPage() {
                   <div className="flex items-center gap-2">
                     <CalendarDays size={18} className="text-airfair-orange" />
                     <h2 className="text-base font-bold text-[#171717]">
-                      30-Day Booking Calendar — {selectedFlight?.airline_name} ({selectedOrigin} → {selectedDestination})
+                      Step 3: Choose Purchase Timing & Fare Forecast
                     </h2>
                   </div>
                   <p className="text-xs text-[#6B7280] mt-0.5">
-                    Pick the <strong>cheapest day to purchase</strong> your ticket. Your travel date is <strong>{travelDate ? new Date(travelDate + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</strong>. Click a date below to schedule auto-booking.
+                    Fly on <strong>{travelDate ? new Date(travelDate + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</strong>. Book immediately today, or choose any date before departure for scheduled auto-booking.
                   </p>
                 </div>
 
@@ -778,7 +905,7 @@ export default function BookFlightPage() {
                 <div className="flex items-center gap-3 text-xs">
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded bg-emerald-500" />
-                    <span className="text-[11px] text-[#6B7280]">Best Price (Cheapest)</span>
+                    <span className="text-[11px] text-[#6B7280]">Best Fare</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded bg-blue-500" />
@@ -786,105 +913,216 @@ export default function BookFlightPage() {
                   </div>
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded bg-rose-400" />
-                    <span className="text-[11px] text-[#6B7280]">Peak / High Fare</span>
+                    <span className="text-[11px] text-[#6B7280]">Peak Fare</span>
                   </div>
                 </div>
               </div>
 
-              {/* 30-Day Calendar Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-6 gap-2.5">
-                {priceTrends.map((t) => {
-                  const isSelected = selectedDateTrend?.dateString === t.dateString;
-                  const isLowest = t.isLowest;
-                  const isIncreasing = t.trend === "INCREASING";
-                  const isDecreasing = t.trend === "DECREASING";
-
-                  return (
-                    <div
-                      key={t.dateString}
-                      onClick={() => setSelectedDateTrend(t)}
-                      className={`p-3 rounded-xl border transition-all cursor-pointer relative text-center flex flex-col justify-between ${
-                        isSelected
-                          ? "bg-[#FFF8F2] border-airfair-orange ring-2 ring-orange-300 shadow-warm-sm scale-105 z-10"
-                          : isLowest
-                          ? "bg-emerald-50/70 border-emerald-300 hover:border-emerald-500"
-                          : isIncreasing
-                          ? "bg-rose-50/50 border-rose-200 hover:border-rose-400"
-                          : "bg-white border-[#F1E5DB] hover:border-orange-200"
-                      }`}
-                    >
-                      {/* Top Badge */}
-                      <div className="flex items-center justify-between text-[10px] font-bold text-[#6B7280] mb-1">
-                        <span>{t.dayName}</span>
-                        <span>{t.monthName} {t.dayNum}</span>
+              {/* Purchase Timing Quick Selector */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Option 1: Book Immediately Today */}
+                <div
+                  onClick={() => {
+                    const todayItem = priceTrends.find(t => t.isToday) || priceTrends[0];
+                    if (todayItem) setSelectedDateTrend(todayItem);
+                  }}
+                  className={`p-4 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between ${
+                    selectedDateTrend?.isToday || selectedDateTrend?.dateString === todayDateStr
+                      ? "bg-orange-50/60 border-airfair-orange shadow-warm-xs"
+                      : "bg-[#FFFCF9] border-[#F1E5DB] hover:border-orange-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-orange-100 text-airfair-orange flex items-center justify-center font-bold">
+                      <Zap size={18} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-[#171717] flex items-center gap-1.5">
+                        <span>Book Immediately (Today)</span>
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">Instant</span>
                       </div>
+                      <div className="text-[11px] text-[#6B7280]">
+                        Ticket issued today upon payment verification
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs font-black text-[#171717]">
+                      ₹{(priceTrends[0]?.fare || selectedFlight?.total_fare || 5450).toLocaleString("en-IN")}
+                    </div>
+                    <div className="text-[10px] text-[#9CA3AF]">today's rate</div>
+                  </div>
+                </div>
 
-                      {/* Price */}
-                      <div className="my-1">
-                        <div className={`text-sm font-black ${
-                          isLowest ? "text-emerald-700" : isIncreasing ? "text-rose-700" : "text-[#171717]"
-                        }`}>
-                          ₹{t.fare.toLocaleString("en-IN")}
+                {/* Option 2: Smart Auto-Book on Lowest Fare Day */}
+                <div
+                  onClick={() => {
+                    const lowestItem = priceTrends.find(t => t.isLowest) || priceTrends[0];
+                    if (lowestItem) setSelectedDateTrend(lowestItem);
+                  }}
+                  className={`p-4 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between ${
+                    selectedDateTrend?.isLowest && !selectedDateTrend?.isToday
+                      ? "bg-emerald-50/60 border-emerald-500 shadow-warm-xs"
+                      : "bg-[#FFFCF9] border-[#F1E5DB] hover:border-emerald-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
+                      <Flame size={18} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-[#171717] flex items-center gap-1.5">
+                        <span>Smart Auto-Book (Best Fare Day)</span>
+                        <span className="px-1.5 py-0.5 rounded bg-orange-100 text-airfair-orange text-[10px] font-bold">AI Optimal</span>
+                      </div>
+                      <div className="text-[11px] text-[#6B7280]">
+                        Auto-executes on statistically cheapest day
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs font-black text-emerald-700">
+                      ₹{(priceTrends.find(t => t.isLowest)?.fare || selectedFlight?.total_fare || 4800).toLocaleString("en-IN")}
+                    </div>
+                    <div className="text-[10px] text-emerald-600 font-bold">lowest fare</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Booking Calendar Grid */}
+              <div className="space-y-2">
+                <div className="text-xs font-bold text-[#6B7280] uppercase flex items-center gap-1">
+                  <Calendar size={13} className="text-airfair-orange" />
+                  <span>Or pick any specific purchase date from the calendar below:</span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
+                  {priceTrends.map((t) => {
+                    const isSelected = selectedDateTrend?.dateString === t.dateString;
+                    const isLowest = t.isLowest;
+                    const isIncreasing = t.trend === "INCREASING";
+                    const isDecreasing = t.trend === "DECREASING";
+
+                    return (
+                      <div
+                        key={t.dateString}
+                        onClick={() => setSelectedDateTrend(t)}
+                        className={`p-3 rounded-xl border transition-all cursor-pointer relative text-center flex flex-col justify-between ${
+                          isSelected
+                            ? "bg-[#FFF8F2] border-airfair-orange ring-2 ring-orange-300 shadow-warm-sm scale-105 z-10"
+                            : isLowest
+                            ? "bg-emerald-50/70 border-emerald-300 hover:border-emerald-500"
+                            : isIncreasing
+                            ? "bg-rose-50/50 border-rose-200 hover:border-rose-400"
+                            : "bg-white border-[#F1E5DB] hover:border-orange-200"
+                        }`}
+                      >
+                        {/* Top Badge */}
+                        <div className="flex items-center justify-between text-[10px] font-bold text-[#6B7280] mb-1">
+                          <span>{t.isToday ? "Today" : t.dayName}</span>
+                          <span>{t.monthName} {t.dayNum}</span>
                         </div>
 
-                        {/* Trend badge */}
-                        <div className="flex items-center justify-center gap-0.5 text-[10px] mt-0.5 font-bold">
-                          {isLowest ? (
-                            <span className="text-emerald-600 bg-emerald-100/80 px-1.5 py-0.2 rounded-full flex items-center gap-0.5">
-                              <Flame size={10} /> Best Deal
-                            </span>
-                          ) : isDecreasing ? (
-                            <span className="text-blue-600 flex items-center">
-                              <ArrowDownRight size={11} /> {Math.abs(t.diffPct)}%
-                            </span>
-                          ) : isIncreasing ? (
-                            <span className="text-rose-500 flex items-center">
-                              <ArrowUpRight size={11} /> +{t.diffPct}%
+                        {/* Price */}
+                        <div className="my-1">
+                          <div className={`text-sm font-black ${
+                            isLowest ? "text-emerald-700" : isIncreasing ? "text-rose-700" : "text-[#171717]"
+                          }`}>
+                            ₹{t.fare.toLocaleString("en-IN")}
+                          </div>
+
+                          {/* Trend badge */}
+                          <div className="flex items-center justify-center gap-0.5 text-[10px] mt-0.5 font-bold">
+                            {t.isToday ? (
+                              <span className="text-orange-600 bg-orange-100/80 px-1.5 py-0.2 rounded-full flex items-center gap-0.5">
+                                <Zap size={10} /> Instant
+                              </span>
+                            ) : isLowest ? (
+                              <span className="text-emerald-600 bg-emerald-100/80 px-1.5 py-0.2 rounded-full flex items-center gap-0.5">
+                                <Flame size={10} /> Best Deal
+                              </span>
+                            ) : isDecreasing ? (
+                              <span className="text-blue-600 flex items-center">
+                                <ArrowDownRight size={11} /> {Math.abs(t.diffPct)}%
+                              </span>
+                            ) : isIncreasing ? (
+                              <span className="text-rose-500 flex items-center">
+                                <ArrowUpRight size={11} /> +{t.diffPct}%
+                              </span>
+                            ) : (
+                              <span className="text-[#9CA3AF]">Stable</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Status Indicator */}
+                        <div className="mt-1 pt-1 border-t border-[#F1E5DB]/60">
+                          {isSelected ? (
+                            <span className="text-[10px] font-black text-airfair-orange flex items-center justify-center gap-1">
+                              <CheckCircle2 size={11} /> {t.isToday ? "Book Today ✅" : "Auto-Book ✅"}
                             </span>
                           ) : (
-                            <span className="text-[#9CA3AF]">Stable</span>
+                            <span className="text-[9px] text-[#9CA3AF]">
+                              {t.isToday ? "Book Today" : "Click to Pick"}
+                            </span>
                           )}
                         </div>
                       </div>
-
-                      {/* Auto-Book Scheduled Indicator */}
-                      <div className="mt-1 pt-1 border-t border-[#F1E5DB]/60">
-                        {isSelected ? (
-                          <span className="text-[10px] font-black text-airfair-orange flex items-center justify-center gap-1">
-                            <CheckCircle2 size={11} /> Auto-Book Scheduled ✅
-                          </span>
-                        ) : (
-                          <span className="text-[9px] text-[#9CA3AF]">Click to Schedule</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Selected Date Summary Banner — shows both dates */}
+              {/* Selected Date Summary Banner — dynamic for Instant vs Scheduled */}
               {selectedDateTrend && (
                 <div className="p-4 bg-[#FFFCF9] border-2 border-orange-200 rounded-2xl space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-airfair-orange text-white flex items-center justify-center">
-                        <CalendarCheck size={22} />
+                        {selectedDateTrend.isToday || selectedDateTrend.dateString === todayDateStr ? (
+                          <Zap size={22} />
+                        ) : (
+                          <CalendarCheck size={22} />
+                        )}
                       </div>
                       <div>
-                        <div className="text-xs font-bold text-airfair-orange uppercase">Scheduled Auto-Book Date (Purchase Day)</div>
+                        <div className="text-xs font-bold text-airfair-orange uppercase">
+                          {selectedDateTrend.isToday || selectedDateTrend.dateString === todayDateStr
+                            ? "Instant Booking Selected (Purchase Today)"
+                            : "Scheduled Auto-Book Date (Purchase Day)"}
+                        </div>
                         <div className="text-base font-black text-[#171717]">
                           {selectedDateTrend.dayName}, {selectedDateTrend.monthName} {selectedDateTrend.dayNum}, 2026 ({selectedDateTrend.dateString})
                         </div>
                         <div className="text-xs text-[#6B7280]">
-                          Fare: <strong className="text-emerald-700">₹{selectedDateTrend.fare.toLocaleString("en-IN")} per adult</strong> • {selectedDateTrend.isLowest ? "Lowest fare detected in next 30 days!" : "Selected for auto-purchase"}
+                          Fare: <strong className="text-emerald-700">₹{selectedDateTrend.fare.toLocaleString("en-IN")} per adult</strong> • {
+                            selectedDateTrend.isToday
+                              ? "Will be booked immediately upon payment"
+                              : selectedDateTrend.isLowest
+                              ? "Lowest fare detected before your departure!"
+                              : "Selected for scheduled auto-purchase"
+                          }
                         </div>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <div className="px-3 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1">
-                        <Zap size={14} />
-                        <span>Auto-Book Scheduled</span>
+                      <div className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 ${
+                        selectedDateTrend.isToday || selectedDateTrend.dateString === todayDateStr
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-emerald-100 text-emerald-800"
+                      }`}>
+                        {selectedDateTrend.isToday || selectedDateTrend.dateString === todayDateStr ? (
+                          <>
+                            <Zap size={14} />
+                            <span>Instant Booking</span>
+                          </>
+                        ) : (
+                          <>
+                            <CalendarCheck size={14} />
+                            <span>Auto-Book Scheduled</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -899,7 +1137,11 @@ export default function BookFlightPage() {
                   </div>
 
                   <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
-                    AIRFAIR will automatically purchase your <strong>{selectedOrigin} → {selectedDestination}</strong> ticket on <strong>{selectedDateTrend.dateString}</strong> at the predicted fare of ₹{selectedDateTrend.fare.toLocaleString("en-IN")}. Your flight departs on <strong>{travelDate}</strong>.
+                    {selectedDateTrend.isToday || selectedDateTrend.dateString === todayDateStr ? (
+                      <>AIRFAIR will book your <strong>{selectedOrigin} → {selectedDestination}</strong> ticket immediately today upon payment completion.</>
+                    ) : (
+                      <>AIRFAIR will automatically purchase your <strong>{selectedOrigin} → {selectedDestination}</strong> ticket on <strong>{selectedDateTrend.dateString}</strong> at the predicted fare of ₹{selectedDateTrend.fare.toLocaleString("en-IN")}. Your flight departs on <strong>{travelDate}</strong>.</>
+                    )}
                   </p>
                 </div>
               )}
@@ -1276,42 +1518,421 @@ export default function BookFlightPage() {
 
               <button
                 type="button"
-                onClick={handleFinalizeBooking}
-                disabled={isProcessing}
-                className="px-6 py-2.5 rounded-xl bg-airfair-orange hover:bg-orange-600 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-warm-sm disabled:opacity-50"
+                onClick={() => { setErrorMessage(""); setStep(6); }}
+                className="px-6 py-2.5 rounded-xl bg-airfair-orange hover:bg-orange-600 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-warm-sm"
               >
-                {isProcessing ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Scheduling Auto-Booking & Locking Fare...</span>
-                  </>
-                ) : (
-                  <>
-                    <Zap size={16} />
-                    <span>Confirm Auto-Booking on Scheduled Date</span>
-                  </>
-                )}
+                <CreditCard size={16} />
+                <span>Continue to Payment</span>
+                <ChevronRight size={16} />
               </button>
             </div>
           </div>
         )}
 
-        {/* STEP 6: AUTO-BOOKING CONFIRMATION & CALENDAR RECEIPT */}
-        {step === 6 && createdBooking && (
+        {/* STEP 6: PAYMENT */}
+        {step === 6 && (
+          <div className="space-y-6">
+            {/* Order Summary */}
+            <div className="bg-white p-5 rounded-2xl border border-[#F1E5DB] shadow-warm-xs">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-base font-bold text-[#171717] flex items-center gap-2">
+                  <CreditCard size={18} className="text-airfair-orange" />
+                  Step 6: Complete Payment
+                </h2>
+                <div className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full flex items-center gap-1">
+                  <Lock size={11} /> Secure Payment
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-[#FFF8F2] to-[#FFF1E6] rounded-xl border border-orange-200">
+                <div className="text-xs text-[#6B7280]">
+                  <div className="font-bold text-[#171717] text-sm mb-0.5">{selectedFlight?.airline_name} • {selectedOrigin} → {selectedDestination}</div>
+                  <div>{passengers.length} Passenger(s) • {selectedDateTrend?.dateString}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] text-[#9CA3AF] uppercase font-bold">Amount Due</div>
+                  <div className="text-2xl font-black text-airfair-orange">₹{grandTotal.toLocaleString("en-IN")}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Method Selector */}
+            <div className="bg-white p-6 rounded-2xl border border-[#F1E5DB] shadow-warm-xs space-y-5">
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setPaymentMethod("upi"); setErrorMessage(""); }}
+                  className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all border-2 ${
+                    paymentMethod === "upi"
+                      ? "border-airfair-orange bg-[#FFF8F2] text-airfair-orange shadow-warm-sm"
+                      : "border-[#E5E7EB] text-[#6B7280] hover:border-orange-200"
+                  }`}
+                >
+                  <Smartphone size={18} />
+                  UPI
+                </button>
+                <button
+                  onClick={() => { setPaymentMethod("card"); setErrorMessage(""); }}
+                  className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all border-2 ${
+                    paymentMethod === "card"
+                      ? "border-airfair-orange bg-[#FFF8F2] text-airfair-orange shadow-warm-sm"
+                      : "border-[#E5E7EB] text-[#6B7280] hover:border-orange-200"
+                  }`}
+                >
+                  <CreditCard size={18} />
+                  Bank Card
+                </button>
+              </div>
+
+              {/* ─── UPI PANEL ─── */}
+              {paymentMethod === "upi" && (
+                <div className="space-y-4">
+                  <div className="p-5 rounded-2xl bg-gradient-to-br from-[#f0f4ff] to-[#e8ecff] border border-indigo-200 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm">
+                        <span className="text-2xl">₹</span>
+                      </div>
+                      <div>
+                        <div className="font-black text-[#171717] text-base">Pay via UPI</div>
+                        <div className="text-xs text-[#6B7280]">Instant payment via any UPI app</div>
+                      </div>
+                    </div>
+
+                    {/* UPI App logos */}
+                    <div className="flex items-center gap-3">
+                      {[
+                        { name: "GPay", emoji: "🟢", label: "Google Pay" },
+                        { name: "PhonePe", emoji: "🟣", label: "PhonePe" },
+                        { name: "Paytm", emoji: "🔵", label: "Paytm" },
+                        { name: "BHIM", emoji: "🟠", label: "BHIM UPI" },
+                      ].map(app => (
+                        <div key={app.name} className="flex flex-col items-center gap-1">
+                          <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-lg">{app.emoji}</div>
+                          <span className="text-[9px] font-bold text-[#6B7280]">{app.name}</span>
+                        </div>
+                      ))}
+                      <div className="ml-auto text-xs text-[#9CA3AF]">& more</div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-[11px] font-bold text-[#6B7280] uppercase">Your UPI ID</label>
+                      <div className="relative">
+                        <Smartphone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                        <input
+                          type="text"
+                          placeholder="yourname@upi  or  number@bank"
+                          value={upiId}
+                          onChange={e => { setUpiId(e.target.value); setUpiError(""); }}
+                          className="w-full pl-9 pr-4 py-3 rounded-xl border border-indigo-200 bg-white text-sm font-semibold focus:ring-2 focus:ring-indigo-300 outline-none"
+                        />
+                      </div>
+                      {upiError && <div className="text-xs text-red-600 font-semibold flex items-center gap-1"><AlertCircle size={12} />{upiError}</div>}
+                      <p className="text-[11px] text-[#9CA3AF]">e.g. rahul@okicici · 9876543210@ybl</p>
+                    </div>
+                  </div>
+
+                  {/* Pay button */}
+                  {!paymentSuccess ? (
+                    <button
+                      onClick={handlePayNow}
+                      disabled={isPaymentProcessing || isProcessing}
+                      className="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black text-base flex items-center justify-center gap-3 shadow-lg disabled:opacity-60 transition-all"
+                    >
+                      {isPaymentProcessing ? (
+                        <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Processing Payment…</span></>
+                      ) : isProcessing ? (
+                        <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Confirming Booking…</span></>
+                      ) : (
+                        <><Smartphone size={20} /><span>Pay ₹{grandTotal.toLocaleString("en-IN")} via UPI</span></>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-500 text-white font-black text-base flex items-center justify-center gap-3">
+                      <BadgeCheck size={22} /> Payment Successful! Confirming booking…
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ─── BANK CARD PANEL ─── */}
+              {paymentMethod === "card" && (
+                <div className="space-y-5">
+                  {/* Bank Selector */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#6B7280] uppercase mb-2">Select Your Bank</label>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                      {BANKS.map(bank => (
+                        <button
+                          key={bank.id}
+                          onClick={() => setSelectedBank(bank)}
+                          className={`py-2 px-1 rounded-xl border-2 text-center transition-all ${
+                            selectedBank?.id === bank.id
+                              ? "border-airfair-orange bg-[#FFF8F2] shadow-warm-sm scale-105"
+                              : "border-[#E5E7EB] hover:border-orange-200 bg-white"
+                          }`}
+                        >
+                          <div className="text-lg mb-0.5">{bank.logo}</div>
+                          <div className="text-[9px] font-black text-[#171717]">{bank.short}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Animated Bank Card */}
+                  <div
+                    className="relative mx-auto"
+                    style={{ width: 340, height: 200, perspective: "1000px" }}
+                    onMouseEnter={() => setCardFlipped(false)}
+                  >
+                    <div
+                      style={{
+                        position: "relative",
+                        width: "100%",
+                        height: "100%",
+                        transformStyle: "preserve-3d",
+                        transition: "transform 0.6s cubic-bezier(0.4,0,0.2,1)",
+                        transform: cardFlipped ? "rotateY(180deg)" : "rotateY(0deg)"
+                      }}
+                    >
+                      {/* Front */}
+                      <div
+                        style={{ backfaceVisibility: "hidden" }}
+                        className={`absolute inset-0 rounded-2xl p-6 bg-gradient-to-br ${
+                          selectedBank ? selectedBank.gradient : "from-[#374151] to-[#1F2937]"
+                        } shadow-2xl flex flex-col justify-between overflow-hidden`}
+                      >
+                        {/* Card shimmer overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-white/20 pointer-events-none" />
+                        <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/5" />
+                        <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-white/5" />
+
+                        {/* Top Row */}
+                        <div className="relative flex items-start justify-between">
+                          <div>
+                            <div className="text-white/60 text-[10px] font-bold uppercase tracking-widest">
+                              {selectedBank ? selectedBank.name : "Select Bank"}
+                            </div>
+                            <div className="text-white font-black text-sm mt-0.5">Debit Card</div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Wifi size={18} className="text-white/70 rotate-90" />
+                          </div>
+                        </div>
+
+                        {/* Chip & Number */}
+                        <div className="relative space-y-3">
+                          <div className="w-10 h-7 rounded-md bg-gradient-to-br from-yellow-300 to-yellow-500 flex items-center justify-center">
+                            <div className="w-7 h-5 rounded border border-yellow-600/40 grid grid-cols-2 gap-px p-0.5">
+                              <div className="bg-yellow-400/60 rounded-sm"/>
+                              <div className="bg-yellow-400/60 rounded-sm"/>
+                              <div className="bg-yellow-400/60 rounded-sm"/>
+                              <div className="bg-yellow-400/60 rounded-sm"/>
+                            </div>
+                          </div>
+                          <div className="text-white font-mono font-bold text-lg tracking-[0.2em]">
+                            {maskCardNumber(cardData.number)}
+                          </div>
+                        </div>
+
+                        {/* Bottom Row */}
+                        <div className="relative flex items-end justify-between">
+                          <div>
+                            <div className="text-white/50 text-[9px] uppercase tracking-wider">Card Holder</div>
+                            <div className="text-white font-bold text-sm tracking-wide">
+                              {cardData.name || "YOUR NAME"}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-white/50 text-[9px] uppercase tracking-wider">Expires</div>
+                            <div className="text-white font-bold text-sm">{cardData.expiry || "MM/YY"}</div>
+                          </div>
+                          <div className="flex gap-1">
+                            <div className="w-8 h-8 rounded-full bg-red-500/80 -mr-3" />
+                            <div className="w-8 h-8 rounded-full bg-yellow-400/80" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Back */}
+                      <div
+                        style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
+                        className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${
+                          selectedBank ? selectedBank.gradient : "from-[#374151] to-[#1F2937]"
+                        } shadow-2xl flex flex-col justify-center overflow-hidden`}
+                      >
+                        <div className="w-full h-10 bg-black/60 mt-6 mb-4" />
+                        <div className="px-6 flex items-center gap-3">
+                          <div className="flex-1 h-8 bg-white/90 rounded flex items-center px-3">
+                            <div className="flex-1 h-1 bg-[#999]/40 rounded" />
+                          </div>
+                          <div className="w-12 h-8 bg-white/90 rounded flex items-center justify-center">
+                            <span className="text-sm font-black text-[#171717]">{cardData.cvv || "CVV"}</span>
+                          </div>
+                        </div>
+                        <div className="px-6 mt-2 text-white/50 text-[9px]">CVV / CVC is the 3-digit code on the back of your card</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Form */}
+                  <div className="grid grid-cols-1 gap-4">
+                    {/* Card Number */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#6B7280] uppercase mb-1">Card Number</label>
+                      <div className="relative">
+                        <CreditCard size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                        <input
+                          type="text"
+                          placeholder="1234 5678 9012 3456"
+                          value={cardData.number}
+                          onChange={handleCardNumberChange}
+                          inputMode="numeric"
+                          maxLength={19}
+                          className="w-full pl-9 pr-4 py-3 rounded-xl border border-[#E5E7EB] bg-[#FFFCF9] text-sm font-mono font-bold tracking-widest focus:ring-2 focus:ring-orange-200 outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Cardholder Name */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#6B7280] uppercase mb-1">Cardholder Name</label>
+                      <div className="relative">
+                        <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                        <input
+                          type="text"
+                          placeholder="Name as on card"
+                          value={cardData.name}
+                          onChange={e => setCardData({ ...cardData, name: e.target.value.toUpperCase() })}
+                          className="w-full pl-9 pr-4 py-3 rounded-xl border border-[#E5E7EB] bg-[#FFFCF9] text-sm font-bold tracking-wide focus:ring-2 focus:ring-orange-200 outline-none uppercase"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Expiry */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-[#6B7280] uppercase mb-1">Expiry Date</label>
+                        <div className="relative">
+                          <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                          <input
+                            type="text"
+                            placeholder="MM/YY"
+                            value={cardData.expiry}
+                            onChange={handleExpiryChange}
+                            inputMode="numeric"
+                            maxLength={5}
+                            className="w-full pl-9 pr-4 py-3 rounded-xl border border-[#E5E7EB] bg-[#FFFCF9] text-sm font-bold focus:ring-2 focus:ring-orange-200 outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* CVV */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-[#6B7280] uppercase mb-1">CVV</label>
+                        <div className="relative">
+                          <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                          <input
+                            type={showCvv ? "text" : "password"}
+                            placeholder="•••"
+                            value={cardData.cvv}
+                            onFocus={() => setCardFlipped(true)}
+                            onBlur={() => setCardFlipped(false)}
+                            onChange={e => setCardData({ ...cardData, cvv: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+                            inputMode="numeric"
+                            maxLength={4}
+                            className="w-full pl-9 pr-9 py-3 rounded-xl border border-[#E5E7EB] bg-[#FFFCF9] text-sm font-bold focus:ring-2 focus:ring-orange-200 outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowCvv(!showCvv)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#6B7280]"
+                          >
+                            {showCvv ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Security badges */}
+                  <div className="flex items-center gap-3 text-[11px] text-[#9CA3AF] pt-1">
+                    <div className="flex items-center gap-1"><Lock size={11} className="text-emerald-500" /> 256-bit SSL</div>
+                    <div className="flex items-center gap-1"><ShieldCheck size={11} className="text-emerald-500" /> 3D Secure</div>
+                    <div className="flex items-center gap-1"><BadgeCheck size={11} className="text-emerald-500" /> PCI DSS Compliant</div>
+                  </div>
+
+                  {/* Pay button */}
+                  {!paymentSuccess ? (
+                    <button
+                      onClick={handlePayNow}
+                      disabled={isPaymentProcessing || isProcessing}
+                      className={`w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-3 shadow-lg disabled:opacity-60 transition-all text-white bg-gradient-to-r ${
+                        selectedBank ? selectedBank.gradient : "from-[#374151] to-[#1F2937]"
+                      } hover:brightness-110`}
+                    >
+                      {isPaymentProcessing ? (
+                        <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Processing Payment…</span></>
+                      ) : isProcessing ? (
+                        <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Confirming Booking…</span></>
+                      ) : (
+                        <><CreditCard size={20} /><span>Pay ₹{grandTotal.toLocaleString("en-IN")} Securely</span><Lock size={16} /></>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-500 text-white font-black text-base flex items-center justify-center gap-3">
+                      <BadgeCheck size={22} /> Payment Successful! Confirming booking…
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Bottom nav */}
+            <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-[#F1E5DB]">
+              <button
+                type="button"
+                onClick={() => setStep(5)}
+                disabled={isPaymentProcessing || isProcessing || paymentSuccess}
+                className="px-4 py-2.5 rounded-xl border border-[#E5E7EB] text-[#6B7280] font-bold text-xs sm:text-sm flex items-center gap-1.5 disabled:opacity-40"
+              >
+                <ChevronLeft size={16} />
+                <span>Back to Seats & Add-Ons</span>
+              </button>
+              <div className="text-xs text-[#9CA3AF] flex items-center gap-1">
+                <Lock size={11} /> Your payment is 100% secure
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 7: AUTO-BOOKING CONFIRMATION & CALENDAR RECEIPT */}
+        {step === 7 && createdBooking && (
           <div className="bg-white p-6 sm:p-8 rounded-2xl border border-[#F1E5DB] shadow-warm-md space-y-6">
             <div className="text-center space-y-2">
               <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2">
                 <CheckCircle2 size={32} />
               </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold uppercase">
+              <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase ${
+                selectedDateTrend?.isToday || selectedDateTrend?.dateString <= todayDateStr
+                  ? "bg-blue-50 text-blue-700"
+                  : "bg-emerald-50 text-emerald-700"
+              }`}>
                 <Zap size={13} />
-                <span>Auto-Booking Successfully Scheduled</span>
+                <span>
+                  {selectedDateTrend?.isToday || selectedDateTrend?.dateString <= todayDateStr
+                    ? "Instant Booking Confirmed"
+                    : "Auto-Booking Successfully Scheduled"}
+                </span>
               </div>
               <h2 className="text-2xl font-black text-[#171717]">
-                Ticket Purchase Scheduled for {selectedDateTrend?.dateString}
+                {selectedDateTrend?.isToday || selectedDateTrend?.dateString <= todayDateStr
+                  ? `Booking Confirmed for ${travelDate ? new Date(travelDate + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "Today"}`
+                  : `Ticket Purchase Scheduled for ${selectedDateTrend?.dateString}`}
               </h2>
               <p className="text-xs sm:text-sm text-[#6B7280] max-w-lg mx-auto">
-                AIRFAIR will automatically purchase the ticket for <strong>{customer.name}</strong> on <strong>{selectedDateTrend?.dateString}</strong> at the predicted best fare. Your flight departs on <strong>{travelDate ? new Date(travelDate + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</strong>.
+                {selectedDateTrend?.isToday || selectedDateTrend?.dateString <= todayDateStr ? (
+                  <>AIRFAIR has processed your ticket for <strong>{customer.name}</strong>. Your flight departs on <strong>{travelDate ? new Date(travelDate + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</strong>.</>
+                ) : (
+                  <>AIRFAIR will automatically purchase the ticket for <strong>{customer.name}</strong> on <strong>{selectedDateTrend?.dateString}</strong> at the predicted best fare. Your flight departs on <strong>{travelDate ? new Date(travelDate + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</strong>.</>
+                )}
               </p>
             </div>
 
@@ -1320,13 +1941,21 @@ export default function BookFlightPage() {
               <div className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-200 space-y-1">
                 <div className="flex items-center gap-2 text-xs font-bold text-airfair-orange uppercase">
                   <CalendarCheck size={14} />
-                  <span>Auto-Book Date (Purchase)</span>
+                  <span>
+                    {selectedDateTrend?.isToday || selectedDateTrend?.dateString <= todayDateStr
+                      ? "Purchase Date (Immediate)"
+                      : "Auto-Book Date (Purchase)"}
+                  </span>
                 </div>
                 <div className="text-lg font-black text-[#171717]">
-                  {selectedDateTrend?.dayName}, {selectedDateTrend?.monthName} {selectedDateTrend?.dayNum}, 2026
+                  {selectedDateTrend?.isToday || selectedDateTrend?.dateString <= todayDateStr
+                    ? "Today (Immediate Purchase)"
+                    : `${selectedDateTrend?.dayName}, ${selectedDateTrend?.monthName} ${selectedDateTrend?.dayNum}, 2026`}
                 </div>
                 <div className="text-xs text-[#6B7280]">
-                  Ticket will be purchased on this date at <strong className="text-emerald-700">₹{selectedDateTrend?.fare?.toLocaleString("en-IN")}/adult</strong>
+                  {selectedDateTrend?.isToday || selectedDateTrend?.dateString <= todayDateStr
+                    ? <>Ticket booked at <strong className="text-emerald-700">₹{selectedDateTrend?.fare?.toLocaleString("en-IN")}/adult</strong></>
+                    : <>Ticket will be purchased on this date at <strong className="text-emerald-700">₹{selectedDateTrend?.fare?.toLocaleString("en-IN")}/adult</strong></>}
                 </div>
               </div>
               <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 space-y-1">

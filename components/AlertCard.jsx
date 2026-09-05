@@ -94,7 +94,7 @@ export default function AlertCard({ alerts }) {
       </div>
 
       <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.76rem", color: "#64748b" }}>
-        <span>Alert thresholds configured via Ministry of Civil Aviation guidelines.</span>
+        <span>Alert thresholds configured via statistical volatility models.</span>
         <button
           type="button"
           style={{ color: "#2563eb", fontWeight: 600 }}

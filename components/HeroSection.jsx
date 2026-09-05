@@ -10,8 +10,8 @@ export default function HeroSection({ onExploreRoutes, onViewIndex }) {
         <div className="hero-inner">
           <div className="hero-content">
             <div className="hero-badge-strip">
-              <span className="sih-tag">SIH 2026 • PS 26056</span>
-              <span>Government of India Civil Aviation Analytical Prototype</span>
+              <span className="sih-tag">Real-Time Intelligence</span>
+              <span>Autonomous Domestic Airfare Price Index Platform</span>
             </div>
             <h1 className="hero-title">India Airfare Intelligence</h1>
             <p className="hero-subtitle">

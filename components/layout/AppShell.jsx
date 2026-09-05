@@ -38,15 +38,28 @@ export default function AppShell({ children, onRefresh, lastUpdated = "Just now"
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [userEmail, setUserEmail] = useState("analyst@civilaviation.gov.in");
+  const [userEmail, setUserEmail] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   useEffect(() => {
     try {
+      const token = sessionStorage.getItem("airfair_auth_token");
       const email = sessionStorage.getItem("airfair_auth_email");
+      if (!token) {
+        // Not authenticated -> immediately redirect to sign in on root page
+        router.replace("/?signin=true");
+        return;
+      }
+      setIsAuthenticated(true);
       if (email) setUserEmail(email);
-    } catch (_) {}
-  }, []);
+    } catch (_) {
+      router.replace("/?signin=true");
+    } finally {
+      setIsCheckingAuth(false);
+    }
+  }, [router]);
 
   const handleRefresh = async () => {
     if (onRefresh) {
@@ -68,7 +81,7 @@ export default function AppShell({ children, onRefresh, lastUpdated = "Just now"
       sessionStorage.removeItem("airfair_auth_email");
       localStorage.removeItem("airfair_intro_seen");
     } catch (_) {}
-    router.push("/");
+    router.push("/?signin=true");
   };
 
   const handleReplayIntro = () => {
@@ -78,8 +91,22 @@ export default function AppShell({ children, onRefresh, lastUpdated = "Just now"
     router.push("/");
   };
 
+  if (isCheckingAuth || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#FFFCF9] flex flex-col items-center justify-center p-6 text-center select-none">
+        <div className="w-14 h-14 rounded-2xl bg-orange-100 border border-orange-200 text-airfair-orange flex items-center justify-center mb-4 shadow-sm animate-pulse">
+          <Plane size={28} className="-rotate-45" />
+        </div>
+        <div className="text-base font-black text-[#171717]">Verifying Authorization...</div>
+        <p className="text-xs text-[#6B7280] mt-1 max-w-xs">
+          Please wait while we verify your session. Redirecting to sign in...
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#FFFCF9] flex flex-col lg:flex-row text-[#171717]">
+    <div className="min-h-screen bg-[#FFFCF9] flex flex-col lg:flex-row text-[#171717]" suppressHydrationWarning>
       {/* ===================================================================== */}
       {/* DESKTOP SIDEBAR                                                       */}
       {/* White background, subtle border, light orange active pills            */}
@@ -116,6 +143,7 @@ export default function AppShell({ children, onRefresh, lastUpdated = "Just now"
                     type="button"
                     onClick={handleOpenChat}
                     className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all text-[#171717] hover:bg-[#FFF8F2] hover:text-airfair-orange group"
+                    suppressHydrationWarning
                   >
                     <div className="flex items-center gap-3">
                       <div className="p-1 rounded-lg bg-orange-100 text-airfair-orange group-hover:bg-airfair-orange group-hover:text-white transition-colors">
@@ -168,6 +196,7 @@ export default function AppShell({ children, onRefresh, lastUpdated = "Just now"
             type="button"
             onClick={handleReplayIntro}
             className="w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold text-[#6B7280] hover:text-airfair-orange transition-colors"
+            suppressHydrationWarning
           >
             <RotateCcw size={13} />
             <span>Replay Cinematic Intro</span>
@@ -192,6 +221,7 @@ export default function AppShell({ children, onRefresh, lastUpdated = "Just now"
             onClick={handleOpenChat}
             className="p-2 text-airfair-orange bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors"
             title="Open AI Flight Assistant"
+            suppressHydrationWarning
           >
             <Bot size={18} />
           </button>
@@ -200,6 +230,7 @@ export default function AppShell({ children, onRefresh, lastUpdated = "Just now"
             onClick={handleRefresh}
             className="p-2 text-[#6B7280] hover:text-airfair-orange"
             title="Refresh airfare data"
+            suppressHydrationWarning
           >
             <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
           </button>
@@ -208,6 +239,7 @@ export default function AppShell({ children, onRefresh, lastUpdated = "Just now"
             onClick={() => setMobileOpen(!mobileOpen)}
             className="p-2 text-[#171717] hover:text-airfair-orange"
             aria-label="Toggle navigation drawer"
+            suppressHydrationWarning
           >
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -230,6 +262,7 @@ export default function AppShell({ children, onRefresh, lastUpdated = "Just now"
                     handleOpenChat();
                   }}
                   className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold text-[#171717] hover:bg-[#FFF8F2] hover:text-airfair-orange"
+                  suppressHydrationWarning
                 >
                   <div className="flex items-center gap-3">
                     <Icon size={18} className="text-airfair-orange" />
@@ -274,6 +307,7 @@ export default function AppShell({ children, onRefresh, lastUpdated = "Just now"
               onClick={handleOpenChat}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-[#F97316] to-[#EA580C] hover:from-[#EA580C] hover:to-[#C2410C] rounded-lg transition-all shadow-warm-sm"
               title="Open AI Flight Assistant"
+              suppressHydrationWarning
             >
               <Sparkles size={13} className="animate-pulse" />
               <span>Ask AI</span>
@@ -289,6 +323,7 @@ export default function AppShell({ children, onRefresh, lastUpdated = "Just now"
               onClick={handleRefresh}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-airfair-orange bg-[#FFF1E6] hover:bg-[#FFE5D0] border border-[#FDBA74] rounded-lg transition-colors shadow-warm-sm"
               title="Poll latest airfare telemetry from FastAPI"
+              suppressHydrationWarning
             >
               <RefreshCw size={12} className={isRefreshing ? "animate-spin" : ""} />
               <span>{isRefreshing ? "Syncing..." : "Refresh"}</span>
@@ -300,18 +335,19 @@ export default function AppShell({ children, onRefresh, lastUpdated = "Just now"
                 type="button"
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-[#F1E5DB] hover:bg-[#FFF8F2] text-xs font-semibold text-[#171717] transition-all"
+                suppressHydrationWarning
               >
                 <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#F97316] to-[#FDBA74] text-white flex items-center justify-center text-[10px] font-bold">
-                  {userEmail ? userEmail.charAt(0).toUpperCase() : "A"}
+                  {userEmail ? userEmail.charAt(0).toUpperCase() : "U"}
                 </div>
-                <span className="hidden md:inline max-w-[140px] truncate">{userEmail}</span>
+                <span className="hidden md:inline max-w-[140px] truncate">{userEmail || "User"}</span>
               </button>
 
               {userMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white border border-[#F1E5DB] rounded-xl shadow-warm-lg p-2 z-50 text-xs">
                   <div className="px-3 py-2 border-b border-[#F1E5DB]">
-                    <div className="font-bold text-[#171717]">Authorized Analyst</div>
-                    <div className="text-[#6B7280] truncate">{userEmail}</div>
+                    <div className="font-bold text-[#171717]">Authorized User</div>
+                    <div className="text-[#6B7280] truncate">{userEmail || "user@domain.com"}</div>
                   </div>
                   <div className="py-1">
                     <Link
@@ -326,6 +362,7 @@ export default function AppShell({ children, onRefresh, lastUpdated = "Just now"
                       type="button"
                       onClick={handleLogout}
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-50 text-red-600 font-semibold"
+                      suppressHydrationWarning
                     >
                       <LogOut size={14} />
                       <span>Sign Out</span>

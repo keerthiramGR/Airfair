@@ -56,26 +56,26 @@ export default function Footer({ onOpenMethodology, onOpenAPI, onOpenAbout }) {
               </li>
               <li className="footer-link-item">
                 <a href="#about-platform" onClick={(e) => { e.preventDefault(); onOpenAbout && onOpenAbout(); }}>
-                  About Problem Statement 26056
+                  About AIRFAIR Platform
                 </a>
               </li>
             </ul>
           </div>
         </div>
 
-        {/* Bottom Bar with SIH 2026 Attribution */}
+        {/* Bottom Bar */}
         <div className="footer-bottom-bar">
           <div className="sih-attribution-badge">
             <ShieldCheck size={14} style={{ color: "#2563eb" }} />
-            <span>Prototype — Smart India Hackathon 2026</span>
+            <span>AIRFAIR Airfare Intelligence Platform</span>
           </div>
 
           <div>
-            Problem Statement: <strong>26056</strong> | Ministry of Civil Aviation / Autonomous Airfare Intelligence Prototype
+            Autonomous Airfare Price Index, Volatility Tracking &amp; Predictive Booking Engine
           </div>
 
           <div>
-            Frontend Phase 1 • Next.js & Pure CSS (No Backend Active)
+            Production Ready &bull; High-Density Domestic Aviation Network
           </div>
         </div>
       </div>

@@ -18,7 +18,7 @@ export default function ModalView({ type, onClose }) {
             {type === "all-routes" && "National Flight Corridors Directory (48 Monitored Routes)"}
             {type === "methodology" && "Airfare Price Index — Scientific Methodology"}
             {type === "api" && "Phase 2 API Contract & Integration Specifications"}
-            {type === "about" && "About AIRFAIR — SIH 2026 Problem Statement 26056"}
+            {type === "about" && "About AIRFAIR Platform"}
           </div>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="Close modal">
             <X size={18} />
@@ -173,20 +173,20 @@ Response: {
             </div>
           )}
 
-          {/* 4. About SIH 2026 */}
+          {/* 4. About AIRFAIR Platform */}
           {type === "about" && (
             <div>
               <h3 style={{ fontSize: "1rem", color: "#0f172a", marginBottom: "8px" }}>
-                Smart India Hackathon 2026 — Problem Statement 26056
+                AIRFAIR — AI-Powered Real-Time Airfare Price Index &amp; Predictive Booking
               </h3>
               <p style={{ lineHeight: 1.6, marginBottom: "14px" }}>
-                <strong>Problem Statement Title:</strong> AI-Powered Real-Time Airfare Price Index for India
+                <strong>Platform Overview:</strong> Real-Time Airfare Price Index for Indian Domestic Corridors
               </p>
               <p style={{ lineHeight: 1.6, marginBottom: "14px" }}>
-                <strong>Objective:</strong> Develop an automated system to monitor domestic airline pricing dynamics, detect unfair price gouging or sudden surges during emergencies/festivals, and provide policymakers, civil aviation regulators, and citizens with transparent index analytics.
+                <strong>Objective:</strong> Deliver automated monitoring of domestic airline pricing dynamics, detect unfair price surges during emergencies or high-demand periods, and provide travelers and analysts with transparent index analytics and automated best-fare booking.
               </p>
               <div style={{ padding: "14px", backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", fontSize: "0.85rem", color: "#166534" }}>
-                <strong>Phase 1 Deliverable Status:</strong> 100% compliant frontend prototype exhibiting all dashboard sections, responsive Pure CSS layouts, and standardized mock data contracts ready for Phase 2 backend orchestration.
+                <strong>Production Status:</strong> Fully connected to PostgreSQL database, 6 high-density metro corridors, daily automated GDS ticketing scheduler, and ML price forecasting.
               </div>
             </div>
           )}

@@ -18,6 +18,7 @@ import {
   User
 } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function AdminBookingsPage() {
   const [data, setData] = useState({ metrics: {}, bookings: [] });
@@ -28,7 +29,7 @@ export default function AdminBookingsPage() {
   const loadAdminBookings = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/admin/bookings");
+      const res = await fetch(`${API_BASE_URL}/api/admin/bookings`);
       if (res.ok) {
         const json = await res.json();
         setData(json);

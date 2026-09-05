@@ -19,6 +19,7 @@ import {
   Ticket
 } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function MyBookingsPage() {
   const [bookings, setBookings] = useState([]);
@@ -33,7 +34,7 @@ export default function MyBookingsPage() {
   const loadBookings = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/bookings");
+      const res = await fetch(`${API_BASE_URL}/api/bookings`);
       if (res.ok) {
         const data = await res.json();
         setBookings(data);
@@ -56,7 +57,7 @@ export default function MyBookingsPage() {
     }
     setIsLoading(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/bookings/pnr/${searchQuery.trim().toUpperCase()}`);
+      const res = await fetch(`${API_BASE_URL}/api/bookings/pnr/${searchQuery.trim().toUpperCase()}`);
       if (res.ok) {
         const data = await res.json();
         setBookings([data]);
@@ -74,7 +75,7 @@ export default function MyBookingsPage() {
     if (!selectedBooking || !cancelReason.trim()) return;
     setIsCancelling(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/bookings/${selectedBooking.id}/cancel`, {
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${selectedBooking.id}/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason: cancelReason })
@@ -279,7 +280,7 @@ export default function MyBookingsPage() {
                         type="button"
                         onClick={async () => {
                           try {
-                            const res = await fetch(`http://127.0.0.1:8000/api/bookings/${b.id}/reconcile`, { method: "POST" });
+                            const res = await fetch(`${API_BASE_URL}/api/bookings/${b.id}/reconcile`, { method: "POST" });
                             if (res.ok) {
                               setActionSuccess(`Reservation status reconciled with Travelport.`);
                               loadBookings();

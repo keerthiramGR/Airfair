@@ -10,6 +10,7 @@ from backend.routers.collection import router as collection_router
 from backend.routers.historical import router as historical_router
 from backend.routers.data_quality import router as data_quality_router
 from backend.routers.booking import router as booking_router, admin_booking_router
+from backend.routers.scheduler import router as scheduler_router
 
 __all__ = [
     "dashboard_router",
@@ -24,7 +25,8 @@ __all__ = [
     "historical_router",
     "data_quality_router",
     "booking_router",
-    "admin_booking_router"
+    "admin_booking_router",
+    "scheduler_router"
 ]
 
 

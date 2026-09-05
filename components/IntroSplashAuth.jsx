@@ -189,7 +189,7 @@ export default function IntroSplashAuth({ onAuthenticated }) {
         <div className="splash-stage-container">
           <div className="splash-badge-pill">
             <span className="live-dot-pulse"></span>
-            GOVERNMENT OF INDIA • SMART INDIA HACKATHON 2026
+            AIRFAIR AVIATION INTELLIGENCE
           </div>
 
           <h1 className="bold-impact-title" aria-label="AIRFAIR">
@@ -197,7 +197,7 @@ export default function IntroSplashAuth({ onAuthenticated }) {
           </h1>
 
           <p className="splash-subtitle">
-            REAL-TIME AIRFARE PRICE INDEX FOR INDIA • PROBLEM STATEMENT 26056
+            REAL-TIME AIRFARE PRICE INDEX &amp; PREDICTIVE BOOKING
           </p>
 
           <div className="splash-loading-bar-wrapper">
@@ -262,7 +262,7 @@ export default function IntroSplashAuth({ onAuthenticated }) {
             <div className="card-top-identity">
               <div className="terminal-chip">
                 <ShieldCheck size={14} style={{ color: "#38bdf8" }} />
-                <span>MINISTRY OF CIVIL AVIATION • RESTRICTED ACCESS</span>
+                <span>AIRFAIR PORTAL • SECURE ACCESS</span>
               </div>
               <h2 className="login-title">
                 AIRFAIR <span style={{ color: "#38bdf8" }}>Portal</span>
@@ -415,10 +415,10 @@ export default function IntroSplashAuth({ onAuthenticated }) {
               </form>
             )}
 
-            {/* Footer institutional credentials note */}
+            {/* Footer notice */}
             <div className="card-footer-notice">
-              <span>Smart India Hackathon 2026 • AI-Powered Price Index System</span>
-              <span style={{ color: "#64748b" }}>Secured with TLS 1.3 & SMTP Authentication</span>
+              <span>AIRFAIR &bull; AI-Powered Price Index &amp; Booking System</span>
+              <span style={{ color: "#64748b" }}>Secured with TLS 1.3 &amp; SMTP Authentication</span>
             </div>
           </div>
         </div>

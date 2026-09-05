@@ -1,6 +1,6 @@
 import secrets
 import string
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
@@ -272,6 +272,14 @@ class BookingService:
         booking.payment_verified_at = datetime.now(timezone.utc)
         booking.status = "PAYMENT_VERIFIED_TICKETING_PENDING"
         self.db.commit()
+
+        # If booking is scheduled for a future auto-booking date, defer ticketing to scheduler
+        today_iso = date.today().isoformat()
+        if booking.auto_book_execution_date and str(booking.auto_book_execution_date) > today_iso:
+            booking.status = "SCHEDULED_CONFIRMED"
+            booking.provider_ticketing_status = "SCHEDULED_FOR_AUTO_BOOK"
+            self.db.commit()
+            return self.get_booking_details(booking_id)
 
         # 3. Call Travelport TripServices for E-Ticket issuance
         ticket_res = self.gds_client.issue_e_tickets(

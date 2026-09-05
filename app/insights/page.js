@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   ShieldAlert,
   AlertTriangle,
@@ -39,6 +39,31 @@ export default function AIInsightsPage() {
     }
     loadData();
   }, [route]);
+
+  const forecastCards = useMemo(() => {
+    const today = new Date();
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const dayLabels = ["Tomorrow", "+2 Days", "+3 Days", "+4 Days", "+5 Days", "+6 Days", "+7 Days"];
+
+    return dayLabels.map((dayLabel, idx) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() + idx + 1);
+      const dateStr = `${String(d.getDate()).padStart(2, "0")} ${monthNames[d.getMonth()]}`;
+
+      const apiItem = forecast?.forecast?.[idx];
+      const fareNum = apiItem?.predicted_fare || (idx === 0 ? 10400 : idx === 3 ? 7600 : idx === 4 ? 7200 : 8500 + (idx % 2 === 0 ? 400 : -600));
+      const changePct = idx === 0 ? "+14%" : idx === 1 ? "+8%" : idx === 4 ? "-18%" : idx === 3 ? "-12%" : "+3%";
+      const surge = idx < 2;
+
+      return {
+        day: dayLabel,
+        date: dateStr,
+        fare: `₹${fareNum.toLocaleString("en-IN")}`,
+        change: changePct,
+        surge
+      };
+    });
+  }, [forecast]);
 
   return (
     <AppShell>
@@ -81,15 +106,7 @@ export default function AIInsightsPage() {
 
         {/* 7-Day Forecast Horizon Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
-          {[
-            { day: "Tomorrow", date: "03 Sep", fare: "₹10,400", change: "+14%", surge: true },
-            { day: "+2 Days", date: "04 Sep", fare: "₹9,850", change: "+8%", surge: false },
-            { day: "+3 Days", date: "05 Sep", fare: "₹8,900", change: "-2%", surge: false },
-            { day: "+4 Days", date: "06 Sep", fare: "₹7,600", change: "-12%", surge: false },
-            { day: "+5 Days", date: "07 Sep", fare: "₹7,200", change: "-18%", surge: false },
-            { day: "+6 Days", date: "08 Sep", fare: "₹8,100", change: "-7%", surge: false },
-            { day: "+7 Days", date: "09 Sep", fare: "₹9,400", change: "+4%", surge: false },
-          ].map((item, idx) => (
+          {forecastCards.map((item, idx) => (
             <div
               key={idx}
               className={`p-3.5 rounded-xl border text-center transition-all ${

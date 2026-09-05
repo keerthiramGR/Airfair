@@ -18,13 +18,14 @@ import { getHealth } from "@/lib/api";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("analyst@civilaviation.gov.in");
+  const [email, setEmail] = useState("");
   const [apiHealth, setApiHealth] = useState(null);
 
   useEffect(() => {
     try {
       const stored = sessionStorage.getItem("airfair_auth_email");
       if (stored) setEmail(stored);
+      else setEmail("Verified User");
     } catch (_) {}
 
     async function checkHealth() {
@@ -156,7 +157,7 @@ export default function SettingsPage() {
             <span>About AIRFAIR</span>
           </div>
           <p className="text-xs text-[#6B7280] leading-relaxed">
-            AIRFAIR is an AI-powered real-time airfare price index platform developed for the Smart India Hackathon 2026 (Problem Statement ID: 26056). Designed to empower the Ministry of Civil Aviation and the Directorate General of Civil Aviation (DGCA) with transparent, macro-level price monitoring and surge detection across India's domestic aviation corridors.
+            AIRFAIR is an AI-powered real-time airfare price index platform designed to deliver transparent, macro-level price monitoring, surge detection, predictive machine learning forecasting, and automated ticketing across India's domestic aviation corridors.
           </p>
         </div>
       </div>

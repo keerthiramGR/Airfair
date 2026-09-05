@@ -22,7 +22,7 @@ import {
 const GROQ_API_KEY = process.env.NEXT_PUBLIC_GROQ_API_KEY || "";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-const SYSTEM_PROMPT = `You are AIRFAIR AI Assistant — the authoritative, friendly, and expert aviation & flight intelligence assistant for India (developed for Smart India Hackathon 2026, Problem Statement 26056).
+const SYSTEM_PROMPT = `You are AIRFAIR AI Assistant — the authoritative, friendly, and expert aviation & flight intelligence assistant for India.
 
 YOUR MISSION:
 Answer ANY and ALL questions related to flights, air travel, airlines, airports, baggage, DGCA regulations, passenger rights, fare pricing trends, and the AIRFAIR platform.
@@ -60,7 +60,7 @@ DOMAINS YOU EXPERTLY COVER:
 
 6. **AIRFAIR Platform Features**:
    - **Real-Time Airfare Index**: Composite benchmark index tracking domestic price inflation across high-density metro corridors.
-   - **30-Day Auto-Booking**: Choose travel date (≥30 days out) → calendar predicts the lowest fare purchase date → auto-executes ticket booking.
+   - **Flexible Smart Auto-Booking**: Choose any travel date → book immediately or let the predictive calendar select the lowest fare purchase date before departure.
    - **Route Heatmaps & Forecasts**: 7-day predictive curves and lead-time analysis.
 
 STYLE & TONE:
@@ -85,7 +85,7 @@ function getOfflineFallbackAnswer(query) {
     return "🧳 **Standard Indian Domestic Baggage Rules**:\n- **Cabin Baggage**: 1 piece up to 7 kg + 1 personal laptop/handbag.\n- **Checked Baggage**: 15 kg for Economy (Air India allows 20–25 kg depending on class).\n- **Power banks & lithium batteries**: Must be kept in cabin baggage ONLY (strictly prohibited in checked baggage).\n- **Excess Baggage**: Pre-book online (approx. ₹450–₹600/kg) to save compared to airport counter rates (₹550–₹700/kg).";
   }
   if (q.includes("auto-book") || q.includes("booking") || q.includes("calendar") || q.includes("airfair")) {
-    return "✈️ **How AIRFAIR Auto-Booking Works**:\n1. Select your **Origin & Destination** (e.g., Delhi to Mumbai).\n2. Pick a **Travel Date** at least 30 days ahead.\n3. The **30-Day Booking Calendar** analyzes historical trends and highlights the statistically cheapest day to purchase.\n4. Enter passenger details & payment token — our system monitors and locks in your ticket at the optimal fare!";
+    return "✈️ **How AIRFAIR Auto-Booking Works**:\n1. Select your **Origin & Destination** (e.g., Delhi to Mumbai).\n2. Pick any **Travel Date** that fits your schedule (tomorrow, next week, or future).\n3. Choose to **Book Immediately Today** or select the **Cheapest Predicted Purchase Day** from the fare forecast.\n4. Complete passenger details & payment token — our scheduler monitors and issues your ticket at the optimal fare!";
   }
   if (q.includes("delay") || q.includes("cancel") || q.includes("rights") || q.includes("refund") || q.includes("dgca")) {
     return "⚖️ **DGCA Passenger Rights Charter**:\n- **Delay > 2 Hours**: Airline must provide complimentary refreshments/meals.\n- **Delay > 6 Hours**: Entitled to full refund or free reschedule.\n- **Cancellation**: Full refund or alternate flight + compensation if not informed at least 14 days in advance.\n- **Baggage Lost/Damaged**: File a Property Irregularity Report (PIR) immediately at the airport counter before exiting.";

@@ -61,7 +61,7 @@ export default function IntroSequence({ onIntroComplete }) {
           className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FFF1E6] border border-[#F1E5DB] text-[11px] font-bold tracking-[0.16em] text-airfair-orange uppercase mb-6 shadow-warm-sm"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-airfair-orange animate-pulse" />
-          SIH 2026 • Problem Statement 26056
+          Real-Time Airfare Intelligence
         </motion.div>
 
         {/* Large Bold Identity Wordmark ("AIRFAIR.") */}
