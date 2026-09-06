@@ -9,8 +9,19 @@ import {
   Sparkles,
   Plane,
   Info,
-  CheckCircle2
+  CheckCircle2,
+  LineChart as LineChartIcon
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ReferenceLine
+} from "recharts";
 import AppShell from "@/components/layout/AppShell";
 import { getInsights, getForecast } from "@/lib/api";
 
@@ -18,6 +29,11 @@ export default function AIInsightsPage() {
   const [insights, setInsights] = useState([]);
   const [forecast, setForecast] = useState(null);
   const [route, setRoute] = useState("DEL-BOM");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     async function loadData() {
@@ -65,6 +81,17 @@ export default function AIInsightsPage() {
     });
   }, [forecast]);
 
+  const chartForecastData = useMemo(() => {
+    return forecastCards.map((c, idx) => ({
+      day: c.day,
+      date: c.date,
+      fare: parseInt(c.fare.replace(/[^0-9]/g, ""), 10),
+      surge: c.surge,
+      change: c.change,
+      isLowest: idx === 4 || idx === 3 // Sweet spot booking dip
+    }));
+  }, [forecastCards]);
+
   return (
     <AppShell>
       {/* Title */}
@@ -102,6 +129,72 @@ export default function AIInsightsPage() {
               <strong>Note:</strong> In this prototype phase, forward forecast rates are benchmark estimates based on seasonal curves.
             </span>
           </div>
+        </div>
+
+        {/* Visual Forecast Area Chart */}
+        <div className="h-64 w-full mb-6">
+          {mounted && (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartForecastData} margin={{ top: 15, right: 15, left: 10, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#F97316" stopOpacity={0.35} />
+                    <stop offset="60%" stopColor="#FB923C" stopOpacity={0.12} />
+                    <stop offset="100%" stopColor="#F97316" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1E5DB" />
+                <XAxis dataKey="day" stroke="#9CA3AF" fontSize={11} tickLine={false} />
+                <YAxis
+                  stroke="#9CA3AF"
+                  fontSize={11}
+                  tickLine={false}
+                  domain={["dataMin - 600", "dataMax + 600"]}
+                  tickFormatter={(v) => `₹${v.toLocaleString("en-IN")}`}
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const d = payload[0].payload;
+                      return (
+                        <div className="bg-[#0F172A] text-white border border-[#334155] p-3 rounded-xl shadow-warm-lg text-xs min-w-[180px]">
+                          <div className="text-[#94A3B8] font-semibold mb-1">{d.day} ({d.date})</div>
+                          <div className="text-base font-black text-orange-400">₹{d.fare.toLocaleString("en-IN")}</div>
+                          <div className={`font-bold mt-1 ${d.surge ? "text-rose-400" : "text-emerald-400"}`}>
+                            {d.surge ? "⚠️ Surge Expected (" + d.change + ")" : "✅ Low Price Dip (" + d.change + ")"}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="fare"
+                  stroke="#F97316"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#forecastGrad)"
+                  dot={(props) => {
+                    const { cx, cy, payload, index } = props;
+                    return (
+                      <circle
+                        key={`dot-${index}`}
+                        cx={cx}
+                        cy={cy}
+                        r={payload.surge ? 5 : payload.isLowest ? 5 : 4}
+                        fill={payload.surge ? "#EF4444" : payload.isLowest ? "#10B981" : "#F97316"}
+                        stroke="#ffffff"
+                        strokeWidth={2}
+                      />
+                    );
+                  }}
+                  activeDot={{ r: 7, fill: "#F97316", stroke: "#ffffff", strokeWidth: 2 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* 7-Day Forecast Horizon Cards */}
