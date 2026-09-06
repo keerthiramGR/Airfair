@@ -20,7 +20,6 @@ export default function AuthCard({ onAuthenticated, onClose }) {
   const [email, setEmail] = useState("");
   const [otpValues, setOtpValues] = useState(["", "", "", "", "", ""]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [demoCode, setDemoCode] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [countdown, setCountdown] = useState(30);
 
@@ -47,12 +46,9 @@ export default function AuthCard({ onAuthenticated, onClose }) {
     setIsSubmitting(true);
 
     try {
-      const res = await sendOTP(cleanEmail);
+      await sendOTP(cleanEmail);
       setStep("otp");
       setCountdown(30);
-      if (res.demo_otp) {
-        setDemoCode(res.demo_otp);
-      }
       setTimeout(() => {
         otpRefs.current[0]?.focus();
       }, 150);
@@ -94,14 +90,6 @@ export default function AuthCard({ onAuthenticated, onClose }) {
     if (e.key === "Backspace" && !otpValues[index] && index > 0) {
       otpRefs.current[index - 1]?.focus();
     }
-  };
-
-  // Auto-fill demo OTP
-  const handleFillDemoCode = () => {
-    if (!demoCode) return;
-    const digits = demoCode.split("");
-    setOtpValues(digits);
-    otpRefs.current[5]?.focus();
   };
 
   // Handle Verify OTP
@@ -311,17 +299,11 @@ export default function AuthCard({ onAuthenticated, onClose }) {
                 </button>
               </div>
 
-              {/* Demo OTP Helper */}
-              {demoCode && (
-                <div
-                  onClick={handleFillDemoCode}
-                  className="mb-4 p-2.5 bg-[#FFF1E6] border border-[#FDBA74] text-orange-900 rounded-xl text-xs flex items-center gap-2 cursor-pointer hover:bg-[#FFE5D0] transition-colors"
-                  title="Click to paste verification code"
-                >
-                  <Sparkles size={14} className="text-airfair-orange shrink-0" />
-                  <span>Test mode code: <strong className="font-mono text-sm tracking-widest text-airfair-orange">{demoCode}</strong> (Click to fill)</span>
-                </div>
-              )}
+              {/* Real-time SMTP Status Indicator */}
+              <div className="mb-4 p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs flex items-center gap-2">
+                <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                <span>Verification code dispatched via secure SMTP. Please check your inbox and spam folder.</span>
+              </div>
 
               <form onSubmit={handleVerifyOtp} className="space-y-5">
                 {/* 6-Digit Boxes */}

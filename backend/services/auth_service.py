@@ -89,20 +89,10 @@ def send_otp_email(email: str, otp: str) -> Tuple[bool, str]:
             return True, "OTP sent successfully to your email via SMTP."
 
         except Exception as exc:
-            print(f"[AIRFAIR SMTP Warning] Could not dispatch email via SMTP ({exc}). Falling back to simulation.")
-            print(f"============================================================")
-            print(f"  [AIRFAIR DEMO OTP] Code for {email} is:  {otp}")
-            print(f"============================================================")
-            return True, f"SMTP server notice: Demo OTP is {otp} (Check server console or test with this code)"
+            print(f"[AIRFAIR SMTP Error] Could not dispatch email via SMTP: {exc}")
+            return False, f"Failed to send email via SMTP: {str(exc)}"
 
-    # Fallback simulation mode
-    print(f"============================================================")
-    print(f"  [AIRFAIR SMTP SIMULATION]")
-    print(f"  Recipient : {email}")
-    print(f"  OTP Code  : {otp}")
-    print(f"  Expires   : In {OTP_TTL_MINUTES} minutes")
-    print(f"============================================================")
-    return True, f"OTP dispatched. (Development mode code: {otp})"
+    return False, "SMTP credentials (SMTP_USER, SMTP_PASSWORD) are not configured on this server."
 
 
 def verify_otp_code(email: str, code: str) -> Tuple[bool, str]:

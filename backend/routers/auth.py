@@ -12,7 +12,6 @@ class SendOTPRequest(BaseModel):
 class SendOTPResponse(BaseModel):
     status: str = Field(..., example="ok")
     message: str = Field(..., example="OTP sent successfully")
-    demo_otp: str = Field(None, description="Included in test environments if SMTP is not configured")
 
 
 class VerifyOTPRequest(BaseModel):
@@ -40,13 +39,12 @@ def request_otp(payload: SendOTPRequest):
     code = generate_otp(email)
     success, message = send_otp_email(email, code)
 
-    # In dev mode without configured SMTP credentials, we provide the code in the message for seamless testing
-    demo_code = code if ("Demo OTP" in message or "Development mode" in message) else None
+    if not success:
+        raise HTTPException(status_code=502, detail=message)
 
     return SendOTPResponse(
         status="ok",
-        message=message,
-        demo_otp=demo_code
+        message=message
     )
 
 

@@ -115,36 +115,23 @@ export async function POST(request) {
         console.log(`[AIRFAIR SMTP ✓] OTP delivered to ${email}`);
         return Response.json({
           status: "ok",
-          message: "Verification code sent to your email.",
-          demo_otp: null,
+          message: "Verification code sent to your email inbox.",
         });
       } catch (smtpErr) {
-        console.warn(`[AIRFAIR SMTP ✗] ${smtpErr.message}`);
-        console.log(`==================================================`);
-        console.log(`  [AIRFAIR DEMO OTP] Email    : ${email}`);
-        console.log(`  [AIRFAIR DEMO OTP] Code     : ${otp}`);
-        console.log(`  [AIRFAIR DEMO OTP] Reason   : ${smtpErr.message}`);
-        console.log(`==================================================`);
-        return Response.json({
-          status: "ok",
-          message: `Email delivery failed — SMTP error. Demo code shown below.`,
-          demo_otp: otp,
-        });
+        console.error(`[AIRFAIR SMTP ✗] Delivery failed: ${smtpErr.message}`);
+        return Response.json(
+          { detail: `Failed to dispatch email via SMTP (${smtpErr.message}). Please verify your email address.` },
+          { status: 502 }
+        );
       }
     }
 
-    // No SMTP configured — demo mode
-    console.log("==================================================");
-    console.log(`  [AIRFAIR DEMO OTP] Email  : ${email}`);
-    console.log(`  [AIRFAIR DEMO OTP] Code   : ${otp}`);
-    console.log(`  [AIRFAIR DEMO OTP] Expiry : 5 minutes`);
-    console.log("==================================================");
-
-    return Response.json({
-      status: "ok",
-      message: "No SMTP configured — demo mode active. OTP shown below.",
-      demo_otp: otp,
-    });
+    // If SMTP is not configured on the server
+    console.error("[AIRFAIR SMTP] SMTP credentials (SMTP_USER, SMTP_PASSWORD) are not configured.");
+    return Response.json(
+      { detail: "SMTP email service is not configured on this server. Real-time email delivery required." },
+      { status: 503 }
+    );
   } catch (err) {
     console.error("[AIRFAIR OTP Error]", err);
     return Response.json({ detail: "Failed to process OTP request. Please try again." }, { status: 500 });
