@@ -181,27 +181,6 @@ export default function AppShell({ children, onRefresh, lastUpdated = "Just now"
             })}
           </nav>
         </div>
-
-        {/* Sidebar Footer — Status & Quick Action */}
-        <div className="p-4 border-t border-[#F1E5DB] space-y-3">
-          <div className="p-3 bg-[#FFF8F2] border border-[#F1E5DB] rounded-xl flex items-center justify-between text-xs">
-            <span className="text-[#6B7280]">Database:</span>
-            <span className="font-bold text-emerald-600 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Supabase Live
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleReplayIntro}
-            className="w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold text-[#6B7280] hover:text-airfair-orange transition-colors"
-            suppressHydrationWarning
-          >
-            <RotateCcw size={13} />
-            <span>Replay Cinematic Intro</span>
-          </button>
-        </div>
       </aside>
 
       {/* ===================================================================== */}
@@ -312,11 +291,6 @@ export default function AppShell({ children, onRefresh, lastUpdated = "Just now"
               <Sparkles size={13} className="animate-pulse" />
               <span>Ask AI</span>
             </button>
-
-            <div className="hidden sm:flex items-center gap-2 text-xs text-[#6B7280]">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>Updated: {lastUpdated}</span>
-            </div>
 
             <button
               type="button"

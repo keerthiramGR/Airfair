@@ -65,11 +65,6 @@ export default function Header({
 
           {/* Right Action Controls */}
           <div className="header-actions">
-            <div className="telemetry-indicator" title="Live Telemetry Status">
-              <span className="pulse-dot"></span>
-              <span>Updated: {lastUpdatedText}</span>
-            </div>
-
             <button
               type="button"
               className={`refresh-btn ${isRefreshing ? "spinning" : ""}`}
